@@ -1,0 +1,163 @@
+#!/bin/sh -e
+##---------------------------------------------------------------------------
+##---------------------------------------------------------------------------
+## NCEP EMC GLOBAL MODEL VERIFICATION
+##
+## CONTRIBUTORS: Mallory Row, mallory.row@noaa.gov, NOAA/NWS/NCEP/EMC-VPPGB
+## PURPOSE: Set up configurations to run user requested verification 
+##---------------------------------------------------------------------------
+##--------------------------------------------------------------------------
+
+echo "BEGIN: $(basename ${BASH_SOURCE[0]})"
+
+####################################################
+# WHAT METPLUS USE CASES TO RUN
+####################################################
+## STEP 1 PRODUCES .STAT FILES FOR PARTIAL SUMS OR CONTINGENCY TABLE COUNTS
+## STEP 2 PRODUCES PLOTS FOR STATISTICS FROM .STAT FILES FROM STEP 1
+## SET TO "YES" or "NO"
+## EDIT SECTIONS BELOW FOR VERIFICATION TYPES REQUESTED
+#RUN_GRID2GRID_STEP1: runs METplus grid_stat, stat_analysis
+#RUN_GRID2GRID_STEP2: runs METplus stat_analysis, make_plots
+#RUN_GRID2OBS_STEP1:  runs METplus pb2nc, point_stat, stat_analysis
+#RUN_GRID2OBS_STEP2:  runs METplus stat_analysis, make_plots
+#RUN_PRECIP_STEP1:    runs METplus pcp_combine, grid_stat, stat_analysis
+#RUN_PRECIP_STEP2:    runs METplus stat_analysis, make_plots
+#RUN_SATELLITE_STEP1: runs METplus grid_stat, stat_analysis
+#RUN_SATELLITE_STEP2: runs METplus stat_analysis, make_plots
+#RUN_TROPCYC:         runs METplus verification for tropical cyclone track and intensity error
+#RUN_FIT2OBS_PLOTS:   runs fit2obs code to make plots
+#RUN_MAPS2D:          run to make forecast maps including lat-lon and zonal-mean distributions
+#RUN_MAPSDA:          run to make analysis maps of time-mean increments, ENKF ensemble mean and ensemble spread
+export RUN_GRID2GRID_STEP1="NO"
+export RUN_GRID2GRID_STEP2="YES"
+export RUN_GRID2OBS_STEP1="NO"
+export RUN_GRID2OBS_STEP2="NO"
+export RUN_PRECIP_STEP1="NO"
+export RUN_PRECIP_STEP2="NO"
+export RUN_SATELLITE_STEP1="NO"
+export RUN_SATELLITE_STEP2="NO"
+export RUN_FIT2OBS_PLOTS="NO"
+export RUN_TROPCYC="NO"
+export RUN_MAPS2D="NO"
+export RUN_MAPSDA="NO"
+
+####################################################
+# GENERAL SETTINGS APPLIED TO ALL USE CASES
+####################################################
+## INPUT DATA SETTINGS
+#model_list:             model names
+#model_dir_list:         directory path to model forecast and analysis files
+#model_stat_dir_list:    directory path to model .stat files
+#model_file_format_list: file format of model files
+#model_hpss_dir_list:    HPSS directory of data
+#model_data_run_hpss:    get files from HPSS ("YES") if not online
+#hpss_walltime:          how long to run HPSS job to get data in minutes
+export model_list="gfs ecm cmc fno ukm cfsr jma ncmrwf"
+export model_dir_list="/lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive/model_data /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive/model_data /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive/model_data /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive/model_data /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive/model_data /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive/model_data /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive/model_data /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive/model_data"
+export model_stat_dir_list="/lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive /lfs/h2/emc/vpppg/noscrub/emc.vpppg/verification/global/archive"
+export model_file_format_list="pgbf{lead?fmt=%2H}.gfs.{init?fmt=%Y%m%d%H} pgbf{lead?fmt=%2H}.ecm.{init?fmt=%Y%m%d%H} pgbf{lead?fmt=%2H}.cmc.{init?fmt=%Y%m%d%H} pgbf{lead?fmt=%2H}.fno.{init?fmt=%Y%m%d%H} pgbf{lead?fmt=%2H}.ukm.{init?fmt=%Y%m%d%H} pgbf{lead?fmt=%2H}.cfsr.{init?fmt=%Y%m%d%H} pgbf{lead?fmt=%2H}.jma.{init?fmt=%Y%m%d%H} pgbf{lead?fmt=%2H}.ncmrwf.{init?fmt=%Y%m%d%H}"
+export model_data_run_hpss="NO"
+export model_hpss_dir_list="/NCEPPROD/hpssprod/runhistory /NCEPPROD/hpssprod/runhistory /NCEPPROD/hpssprod/runhistory /NCEPPROD/hpssprod/runhistory /NCEPPROD/hpssprod/runhistory /NCEPPROD/hpssprod/runhistory /NCEPPROD/hpssprod/runhistory /NCEPPROD/hpssprod/runhistory"
+export hpss_walltime="10"
+## OUTPUT DATA SETTINGS
+#OUTPUTROOT: base output directory
+export OUTPUTROOT="$output_dir/verif_global_monthly_mean_all_models_${cycle}Z"
+## DATE SETTINGS
+#start_date:       verification start date, format YYYYMMDD
+#end_date:         verification end date, format YYYYMMDD
+#make_met_data_by: how to treat dates, "VALID" or "INIT"
+#plot_by:          how to plot data, "VALID" or "INIT"
+export start_date="$monthly_mean_start_date"
+export end_date="$monthly_mean_end_date"
+export make_met_data_by="VALID"
+export plot_by="VALID"
+## WEB SETTINGS
+#SEND2WEB:  whether or not to send maps to webhost
+#webhost:   webhost(rzdm) computer
+#webhostid: webhost(rzdm) user name
+#webdir:    directory where to send maps on webhost
+#img_quality: image quality/resolution: "low", "medium", "high"
+#             "low", use if you are just viewing the images (internal use)
+#             "medium", use for internal use with collegues (internal use)
+#             "high", use for journals or professional presentations (external use)
+export SEND2WEB="NO"
+export webhost="emcrzdm.ncep.noaa.gov"
+export webhostid="emc.vpppg"
+export webdir="/home/people/emc/www/htdocs/users/verification/global/gfs/opsx"
+export img_quality="high"
+## METPLUS SETTINGS
+#MET_version:               MET version to use: 9.1
+#METplus_version:           METplus version to use: 3.1
+#MET_verbosity:             MET verbosity for logging, 1-5 (most verbose is 5)
+#METplus_verbosity:         DEBUG, INFO, WARN, ERROR (most verbose is DEBUG)
+#log_MET_output_to_METplus: log MET output to METplus log, yes or no
+export MET_version="9.1"
+export METplus_version="3.1"
+export METplus_verbosity="INFO"
+export MET_verbosity="2"
+export log_MET_output_to_METplus="yes"
+## DATA DIRECTIVE SETTINGS
+export SENDARCH="YES"
+export SENDMETVIEWER="NO"
+export KEEPDATA="YES"
+export SENDECF="NO"
+export SENDCOM="NO"
+export SENDDBN="NO"
+export SENDDBN_NTC="NO"
+####################################################
+# SETTINGS FOR SPECIFIC USE CASES
+####################################################
+if [ $RUN_GRID2GRID_STEP2 = YES ]; then
+    #g2g2_model_plot_name_list: list of models reference name on plots
+    #g2g2_type_list: list type of verifications to run for grid-to-grid: anom, pres, sfc
+    #### For each type the followings can be set, where [type] is anom, pres, or sfc
+    #####    g2g2_[type]_truth_name_list: list of analysis type used for model in step 1: self_anl, self_f00, gfs_anl, gfs_f00
+    #####    g2g2_[type]_gather_by_list:  list of how model data was gathered in step 1
+    #####    g2g2_[type]_fyc_list:        all forecst cycles to be included in verification: HH
+    #####    g2g2_[type]_vhr_list:        all valid hours to be included in verification: HH
+    #####    g2g2_[type]_fhr_min:         forecast hour to start verification HH[H]
+    #####    g2g2_[type]_fhr_max:         forecast hour to end verification HH[H]
+    #####    g2g2_[type]_event_eq:        do event equalization (True) or not (False)
+    #####    g2g2_[type]_grid:            NCEP grid verification was done on
+    #g2g2_make_scorecard: create scorecard on METviewer AWS (YES) or not(NO)
+    #g2g2_sc_mv_database_list: list of METviewer databases to use for scorecard
+    #g2g2_sc_valid_start_date: scorecard valid start date, format YYYYMMDD
+    #g2g2_sc_valid_end_date: scorecard valid end date, format YYYYMMDD
+    #g2g2_sc_fcyc_list: all forecst cycles to be included in scorecard: HH
+    #g2g2_sc_vhr_list: all valid hours to be included in scorecard: HH
+    export g2g2_model_plot_name_list="gfs ecm cmc fno ukm cfsr jma imd"
+    export g2g2_type_list="anom"
+    export g2g2_anom_truth_name_list="self_anl self_f00 self_f00 self_f00 self_f00 self_anl self_f00 self_f00"
+    export g2g2_anom_gather_by_list="VSDB VSDB VSDB VSDB VSDB VSDB VSDB VSDB"
+    export g2g2_anom_fcyc_list="${cycle}"
+    export g2g2_anom_vhr_list="${cycle}"
+    export g2g2_anom_fhr_min="0"
+    export g2g2_anom_fhr_max="240"
+    export g2g2_anom_event_eq="False"
+    export g2g2_anom_grid="G002"
+    export g2g2_pres_truth_name_list="self_anl self_f00 self_f00 self_f00 self_f00 self_anl self_f00 self_f00"
+    export g2g2_pres_gather_by_list="VSDB VSDB VSDB VSDB VSDB VSDB VSDB VSDB"
+    export g2g2_pres_fcyc_list="${cycle}"
+    export g2g2_pres_vhr_list="${cycle}"
+    export g2g2_pres_fhr_min="0"
+    export g2g2_pres_fhr_max="240"
+    export g2g2_pres_event_eq="False"
+    export g2g2_pres_grid="G002"
+    export g2g2_sfc_truth_name_list="self_f00 self_f00 self_f00 self_f00 self_f00 self_f00 self_f00 self_f00"
+    export g2g2_sfc_gather_by_list="VSDB VSDB VSDB VSDB VSDB VSDB VSDB VSDB"
+    export g2g2_sfc_fcyc_list="${cycle}"
+    export g2g2_sfc_vhr_list="${cycle}"
+    export g2g2_sfc_fhr_min="0"
+    export g2g2_sfc_fhr_max="240"
+    export g2g2_sfc_event_eq="False"
+    export g2g2_sfc_grid="G002"
+    export g2g2_make_scorecard="NO"
+    export g2g2_sc_mv_database_list="mv_gfs_grid2grid_metplus"
+    export g2g2_sc_valid_start_date="$start_date"
+    export g2g2_sc_valid_end_date="$end_date"
+    export g2g2_sc_fcyc_list="00"
+    export g2g2_sc_vhr_list="00"
+fi
+
+echo "END: $(basename ${BASH_SOURCE[0]})"
